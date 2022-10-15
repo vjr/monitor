@@ -8,18 +8,65 @@ public class Monitor.ProcessUtils {
         return chunk.contains ("python");
     }
 
-    public static string sanitize_commandline (string ? commandline) {
+    public static string sanitize_commandline (string ? commandline, bool fullname = false) {
         if (commandline == null) return Path.get_basename ("");
 
         // splitting command; might include many options
         var splitted_commandline = commandline.split (" ");
 
+        if (fullname) {
+            return splitted_commandline[0];
+        }
+
         // check if started by any shell
-        if (is_shell (splitted_commandline[0]) || is_python (splitted_commandline[0]) ) {
+        if (splitted_commandline.length > 1 && (is_shell (splitted_commandline[0]) || is_python (splitted_commandline[0]))) {
             return Path.get_basename (splitted_commandline[1]);
         }
 
         return Path.get_basename (splitted_commandline[0]);
+    }
+
+    public static bool get_flatpak_command (string ? commandline, ref string base_name, ref string full_name) {
+        try {
+            if (commandline == null) {
+                return false;
+            }
+
+            string pattern_flatpak = ".*?flatpak .*?command.(.*?)[ '].*";
+            string pattern_bwrap = ".*?bwrap .*?(\\/.*?) .*";
+
+            GLib.Regex regex_flatpak = new GLib.Regex (pattern_flatpak);
+            GLib.Regex regex_bwrap = new GLib.Regex (pattern_bwrap);
+
+            GLib.Regex ? regex = null;
+
+            if (regex_flatpak.match (commandline)) { 
+                regex = regex_flatpak;
+            } else if (regex_bwrap.match (commandline)) {
+                if (commandline.contains ("bwrap")) {
+                    message ("VJR: GOT BWRAP: " + commandline);
+                }
+                regex = regex_bwrap;
+            } else {
+                return false;
+            }
+
+            //message ("VJR: MATCH OKAY: " + commandline);
+
+            full_name = regex.replace (commandline, -1, 0, "\\1");
+
+            //message ("VJR: MATCH FULL: " + (full_name == null ? "NULL" : full_name));
+
+            if (full_name != null)
+            base_name = Path.get_basename (full_name);
+            
+            //message ("VJR: MATCH BASE: " + (base_name  == null ? "NULL" : base_name));
+
+            return true;
+        } catch (Error error) {
+            message ("VJR: MATCH ERROR: " + error.message);
+            return false;
+        }
     }
 
     public static string ? read_file (string path) {

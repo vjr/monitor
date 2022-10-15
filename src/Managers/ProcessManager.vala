@@ -67,7 +67,7 @@ namespace Monitor {
                     apps_info_list_native.set (commandline, app_info);
                 }
                 apps_info_list.set (commandline, app_info);
-                message ("VJR: appinfo command: " + commandline);
+                //message ("VJR: appinfo command: " + commandline);
             }
         }
 
@@ -219,6 +219,9 @@ namespace Monitor {
 
             // placeholding shortened commandline
             process.application_name = ProcessUtils.sanitize_commandline (process.command);
+            process.full_name = ProcessUtils.sanitize_commandline (process.command, true);
+
+            ProcessUtils.get_flatpak_command(process.command, ref process.application_name, ref process.full_name);
 
             if (process.command.contains ("bwrap")) {
 
@@ -228,14 +231,23 @@ namespace Monitor {
 
             }
 
-            message ("VJR: process command: " + process.command);
+            //message ("VJR: process command: " + process.command);
 
             // checking maybe it's an application
             foreach (var key in apps_info_list.keys) {
+                /*
                 if (key.contains (process.application_name)) {
                     process.application_name = apps_info_list.get (key).get_name ();
                     // debug (apps_info_list.get (key).get_icon ().to_string ());
                     process.icon = apps_info_list.get (key).get_icon ();
+                }
+                */
+                if (corelate_names (key, ref process)) {
+                    //message ("VJR: corelate() DONE!!!");
+                    //message ("VJR: KEY: " + key);
+                    //message ("VJR: COMMAND: " + process.command);
+                    //message ("VJR: APPNAME: " + process.application_name);
+                    break;
                 }
             }
 
@@ -263,6 +275,78 @@ namespace Monitor {
             }
 
             return null;
+        }
+
+        private bool corelate_names (string app_info_command, ref Process process) {
+            //message ("VJR: SANITIZE KEY: " + app_info_command);
+            string app_info_application_name = ProcessUtils.sanitize_commandline(app_info_command);
+            string app_info_full_name = ProcessUtils.sanitize_commandline(app_info_command, true);
+
+            if (ProcessUtils.get_flatpak_command(app_info_command, ref app_info_application_name, ref app_info_full_name)) {
+                if (process.command.contains (app_info_full_name)) {
+                    update_process_info (ref process, apps_info_list.get (app_info_command).get_name (), apps_info_list.get (app_info_command).get_icon ());
+                    //message ("VJR: FLATPAK KEY:" + app_info_command);
+                    //message ("VJR: FLATPAK BASE:" + app_info_application_name);
+                    //message ("VJR: FLATPAK FULL:" + app_info_full_name);
+                    //message ("VJR: FLATPAK COMMAND:" + process.command);
+                    //message ("VJR: FLATPAK APPNAME:" + process.application_name);
+                    return true;
+                } else if (ProcessUtils.get_flatpak_command(process.command, ref app_info_application_name, ref app_info_full_name) && app_info_command.contains (app_info_full_name)) {
+                    //message ("VJR: FAILED FLATPAK CORELATE APPINFO KEY: " + app_info_command);
+                    //message ("VJR: FAILED FLATPAK CORELATE APPINFO BASE: " + app_info_application_name);
+                    //message ("VJR: FAILED FLATPAK CORELATE APPINFO FULL: " + app_info_full_name);
+                    //message ("VJR: FAILED FLATPAK CORELATE PROCESS COMMAND: " + process.command);
+                    update_process_info (ref process, apps_info_list.get (app_info_command).get_name (), apps_info_list.get (app_info_command).get_icon ());
+                    return true;
+                }
+            //} else if (app_info_command.contains (process.application_name)) {
+            } else if (ProcessUtils.get_flatpak_command(process.command, ref app_info_application_name, ref app_info_full_name)) {
+                message ("VJR: KEY:" + app_info_command);
+                message ("VJR: BASE:" + app_info_application_name);
+                message ("VJR: FULL:" + app_info_full_name);
+                if (app_info_command.contains (app_info_full_name)) {
+                    //string oldname = process.application_name;
+                    update_process_info (ref process, apps_info_list.get (app_info_command).get_name (), apps_info_list.get (app_info_command).get_icon ());
+                    //if (process.application_name.contains ("GoogleAppGoogle")) {
+                        //message ("VJR: KEY:" + app_info_command);
+                        //message ("VJR: BASE:" + app_info_application_name);
+                        //message ("VJR: FULL:" + app_info_full_name);
+                        //message ("VJR: COMMAND:" + process.command);
+                        //message ("VJR: FULLNAME:" + process.full_name);
+                        //message ("VJR: APPNAME1:" + oldname);
+                        //message ("VJR: APPNAME2:" + process.application_name);
+                    //}
+                    return true;
+                } else {
+                   //message ("VJR: MISSED PROCESS:" + process.command);
+                }
+            } else if (app_info_command.contains (process.full_name)) {
+                update_process_info (ref process, apps_info_list.get (app_info_command).get_name (), apps_info_list.get (app_info_command).get_icon ());
+                return true;
+            //} else if ((process.full_name.contains ("chromium") || process.full_name.contains ("bwrap")) && app_info_command.contains ("chrom")) {
+            } else if (process.command.contains (app_info_full_name)) {
+                update_process_info (ref process, apps_info_list.get (app_info_command).get_name (), apps_info_list.get (app_info_command).get_icon ());
+                return true;
+            } else {
+                /*
+                message ("***************************************************");
+                message ("VJR: MISSED KEY:" + app_info_command);
+                message ("VJR: MISSED BASE:" + app_info_application_name);
+                message ("VJR: MISSED FULL:" + app_info_full_name);
+                message ("VJR: MISSED COMMAND:" + process.command);
+                message ("VJR: MISSED FULLNAME:" + process.full_name);
+                message ("VJR: MISSED APPNAME:" + process.application_name);
+                message ("***************************************************");
+                */
+            }
+
+            return false;
+        }
+
+        private void update_process_info (ref Process process, string name, GLib.Icon ? icon) {
+            process.application_name = name;
+            process.icon = icon;
+            //message ("VJR: ICON: " + (icon == null ? "NULL" : icon.to_string ()));
         }
 
         /**

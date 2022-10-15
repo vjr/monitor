@@ -15,6 +15,8 @@ public class Monitor.Process : GLib.Object {
     // otherwise it is just a trimmed command
     public string application_name;
 
+    public string full_name;
+
     // User id
     public int uid;
 
