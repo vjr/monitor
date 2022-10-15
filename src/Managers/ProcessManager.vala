@@ -16,6 +16,9 @@ namespace Monitor {
         private Gee.TreeMap<int, Process> process_list;
         private Gee.HashSet<int> kernel_process_blacklist;
         private Gee.HashMap<string, AppInfo> apps_info_list;
+        private Gee.HashMap<string, AppInfo> apps_info_list_bwrap;
+        private Gee.HashMap<string, AppInfo> apps_info_list_flatpak;
+        private Gee.HashMap<string, AppInfo> apps_info_list_native;
 
 
         public signal void process_added (Process process);
@@ -27,6 +30,9 @@ namespace Monitor {
             process_list = new Gee.TreeMap<int, Process> ();
             kernel_process_blacklist = new Gee.HashSet<int> ();
             apps_info_list = new Gee.HashMap<string, AppInfo> ();
+            apps_info_list_bwrap = new Gee.HashMap<string, AppInfo> ();
+            apps_info_list_flatpak = new Gee.HashMap<string, AppInfo> ();
+            apps_info_list_native = new Gee.HashMap<string, AppInfo> ();
 
             populate_apps_info ();
 
@@ -53,7 +59,15 @@ namespace Monitor {
                     continue;
 
                 // sanitize_cmd (ref cmd);
+                if (commandline.contains ("bwrap")) {
+                    apps_info_list_bwrap.set (commandline, app_info);
+                } else if (commandline.contains ("flatpak")) {
+                    apps_info_list_flatpak.set (commandline, app_info);
+                } else {
+                    apps_info_list_native.set (commandline, app_info);
+                }
                 apps_info_list.set (commandline, app_info);
+                message ("VJR: appinfo command: " + commandline);
             }
         }
 
@@ -206,6 +220,16 @@ namespace Monitor {
             // placeholding shortened commandline
             process.application_name = ProcessUtils.sanitize_commandline (process.command);
 
+            if (process.command.contains ("bwrap")) {
+
+            } else if (process.command.contains ("flatpak")) {
+
+            } else {
+
+            }
+
+            message ("VJR: process command: " + process.command);
+
             // checking maybe it's an application
             foreach (var key in apps_info_list.keys) {
                 if (key.contains (process.application_name)) {
@@ -240,7 +264,6 @@ namespace Monitor {
 
             return null;
         }
-
 
         /**
          * Remove the process from all lists and broadcast the process_removed signal if removed.
