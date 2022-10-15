@@ -245,7 +245,7 @@ public class Monitor.Utils.Colors : Object {
 
     public Gdk.RGBA get_color_by_index (int index) {
         int int_index = index;
-        if (index > 60) {
+        if (index >= 60) {
             int_index = index % 60;
         }
         return _rgba_colors.get (int_index);

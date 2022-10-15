@@ -8,18 +8,54 @@ public class Monitor.ProcessUtils {
         return chunk.contains ("python");
     }
 
-    public static string sanitize_commandline (string ? commandline) {
+    public static string sanitize_commandline (string ? commandline, bool fullname = false) {
         if (commandline == null) return Path.get_basename ("");
 
         // splitting command; might include many options
         var splitted_commandline = commandline.split (" ");
 
+        if (fullname) {
+            return splitted_commandline[0];
+        }
+
         // check if started by any shell
-        if (is_shell (splitted_commandline[0]) || is_python (splitted_commandline[0]) ) {
+        if (splitted_commandline.length > 1 && (is_shell (splitted_commandline[0]) || is_python (splitted_commandline[0]))) {
             return Path.get_basename (splitted_commandline[1]);
         }
 
         return Path.get_basename (splitted_commandline[0]);
+    }
+
+    public static bool get_flatpak_command (string ? commandline, ref string base_name, ref string full_name) {
+        try {
+            if (commandline == null) {
+                return false;
+            }
+
+            string pattern_flatpak = ".*?flatpak .*?command.(.*?)[ '].*";
+            string pattern_bwrap = "bwrap .*?(\\/.*?) .*";
+
+            GLib.Regex regex_flatpak = new GLib.Regex (pattern_flatpak);
+            GLib.Regex regex_bwrap = new GLib.Regex (pattern_bwrap);
+
+            GLib.Regex ? regex = null;
+
+            if (regex_flatpak.match (commandline)) {
+                regex = regex_flatpak;
+            } else if (regex_bwrap.match (commandline)) {
+                regex = regex_bwrap;
+            } else {
+                return false;
+            }
+
+            full_name = regex.replace (commandline, -1, 0, "\\1");
+
+            base_name = Path.get_basename (full_name);
+
+            return true;
+        } catch (Error error) {
+            return false;
+        }
     }
 
     public static string ? read_file (string path) {

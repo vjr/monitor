@@ -205,14 +205,20 @@ namespace Monitor {
 
             // placeholding shortened commandline
             process.application_name = ProcessUtils.sanitize_commandline (process.command);
+            process.full_name = ProcessUtils.sanitize_commandline (process.command, true);
 
             // checking maybe it's an application
             foreach (var key in apps_info_list.keys) {
-                if (key.contains (process.application_name)) {
+                if (corelate_info (key, ref process)) {
+                    break;
+                }
+                /*
+                if (key.contains (process.full_name)) {
                     process.application_name = apps_info_list.get (key).get_name ();
                     // debug (apps_info_list.get (key).get_icon ().to_string ());
                     process.icon = apps_info_list.get (key).get_icon ();
                 }
+                */
             }
 
             if (process.application_name == "bash") {
@@ -241,6 +247,38 @@ namespace Monitor {
             return null;
         }
 
+        private bool corelate_info (string appinfo_command, ref Process process) {
+            //string appinfo_application_name = ProcessUtils.sanitize_commandline (appinfo_command);
+            string appinfo_full_name = ProcessUtils.sanitize_commandline (appinfo_command, true);
+
+            string flatpak_process_base = "";
+            string flatpak_process_full = "";
+            string flatpak_appinfo_base = "";
+            string flatpak_appinfo_full = "";
+
+            bool flatpak_process = ProcessUtils.get_flatpak_command (process.command, ref flatpak_process_base, ref flatpak_process_full);
+            bool flatpak_appinfo = ProcessUtils.get_flatpak_command (appinfo_command, ref flatpak_appinfo_base, ref flatpak_appinfo_full);
+
+            string appinfo_name = apps_info_list.get (appinfo_command).get_name ();
+            GLib.Icon ? appinfo_icon = apps_info_list.get (appinfo_command).get_icon ();
+
+            bool matched = false;
+
+            matched = matched || (flatpak_appinfo && flatpak_process && (flatpak_appinfo_full == flatpak_process_full));
+            matched = matched || (appinfo_full_name == process.full_name);
+            matched = matched || (process.application_name == "bwrap" && process.command.contains (flatpak_appinfo_full));
+
+            if (matched) {
+                update_process_info (ref process, appinfo_name, appinfo_icon);
+            }
+
+            return matched;
+        }
+
+        private void update_process_info (ref Process process, string name, GLib.Icon ? icon) {
+            process.application_name = name;
+            process.icon = icon;
+        }
 
         /**
          * Remove the process from all lists and broadcast the process_removed signal if removed.
